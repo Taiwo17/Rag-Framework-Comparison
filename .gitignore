@@ -1,0 +1,37 @@
+venv/
+
+.env
+__pycache__/
+*.py[cod]
+.DS_Store
+.pytest_cache/
+.chroma/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+.venvs/
+llamaindex-rag/
+haystack-rag/
+langchain-rag/
+llamastack-rag/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Generated files and operating-system files
+.DS_Store
+.chroma/
+
+# IDE
+.vscode/
+.idea/

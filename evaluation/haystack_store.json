@@ -1,0 +1,27 @@
+{
+  "document_count": 20,
+  "embedding_dimensions": 384,
+  "similarity": "cosine",
+  "document_ids": [
+    "chunk-0001",
+    "chunk-0002",
+    "chunk-0003",
+    "chunk-0004",
+    "chunk-0005",
+    "chunk-0006",
+    "chunk-0007",
+    "chunk-0008",
+    "chunk-0009",
+    "chunk-0010",
+    "chunk-0011",
+    "chunk-0012",
+    "chunk-0013",
+    "chunk-0014",
+    "chunk-0015",
+    "chunk-0016",
+    "chunk-0017",
+    "chunk-0018",
+    "chunk-0019",
+    "chunk-0020"
+  ]
+}

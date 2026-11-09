@@ -1,0 +1,30 @@
+{
+  "llm": {
+    "provider": "ollama",
+    "model": "qwen2.5:3b",
+    "base_url": "http://localhost:11434"
+  },
+  "embeddings": {
+    "provider": "sentence-transformers",
+    "model": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "chunking": {
+    "size": 500,
+    "overlap": 50,
+    "unit": "tokens"
+  },
+  "retrieval": {
+    "top_k": 4
+  },
+  "evaluation": {
+    "questions_file": "evaluation/questions.json",
+    "total_questions": 15
+  },
+  "corpus": {
+    "path": "corpus/devops-rag-corpus.pdf",
+    "expected_pages": 10
+  },
+  "vector_store": {
+    "separate_collection_per_framework": true
+  }
+}

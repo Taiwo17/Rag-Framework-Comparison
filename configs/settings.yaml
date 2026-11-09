@@ -1,0 +1,27 @@
+project:
+  name: rag-framework-comparison
+  python_version: "3.12.10"
+
+corpus:
+  directory: corpus/
+  format: pdf
+  expected_pages: 10
+
+embeddings:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  provider: sentence-transformers
+
+chunking:
+  size: 500
+  overlap: 50
+
+retrieval:
+  top_k: 4
+
+evaluation:
+  questions: 15
+  frameworks:
+  - llamaindex
+  - haystack
+  - langchain
+  - llamastack

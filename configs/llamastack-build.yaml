@@ -1,0 +1,24 @@
+version: 2
+
+distribution_spec:
+  description: Local DevOps RAG comparison using Ollama and CPU-based providers.
+  providers:
+    inference:
+    - provider_type: remote::ollama
+    vector_io:
+    - provider_type: inline::faiss
+    files:
+    - provider_type: inline::localfs
+    agents:
+    - provider_type: inline::meta-reference
+    telemetry:
+    - provider_type: inline::meta-reference
+    tool_runtime:
+    - provider_type: inline::rag-runtime
+
+image_type: venv
+
+additional_pip_packages:
+- aiosqlite
+- asyncpg
+- sqlalchemy[asyncio]

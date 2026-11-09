@@ -1,0 +1,182 @@
+[
+    {
+        "id": "chunk-0001",
+        "text": "devops rag corpus | page 1 devops rag corpus corpus id : devops - rag - corpus version : 1. 0 purpose : a consistent, text - based technical corpus for comparing retrieval - augmented generation ( rag ) frameworks. topics : docker, kubernetes, terraform, aws, and ci / cd. formatting note : code examples use fenced markdown code blocks with language identifiers. keep the opening and closing fences on their own lines when converting this file to pdf or another format. 1. docker fundamentals 1. 1 what docker does docker packages an application and its runtime dependencies into an image. a container is a running instance of an image. this helps teams reduce environment differences between development, testing, and production. a docker image is built from a dockerfile. the docker daemon or compatible builder reads the instructions, obtains base layers, executes build steps, and produces an image. containers use the image as an immutable template while adding a writable container layer at runtime. common docker concepts : image : a versioned package containing application files and runtime dependencies. container : an isolated process created from an image. registry : a service for storing and distributing images. volume : persistent storage managed outside a container ' s writable layer. network : a virtual network that allows containers to communicate. dockerfile : a declarative set of instructions used to build an image. 1. 2 a production - oriented node. js dockerfile the following example uses a multi - stage build. dependencies are installed in a build stage, while the final image contains only the files needed to run the application. # build stage from node : 22 - alpine as builder workdir / app # copy dependency manifests first to improve build - cache reuse. copy package *. json. / # install the exact dependency tree recorded in package - lock. json. run npm ci # copy the application source and build it. copy.. run npm run build # runtime stage from node : 22 - alpine as runtime env node _ env = production workdir / app # copy only production dependencies and compiled application output. copy package *. json. / run npm ci - - omit = dev & & npm cache clean - - force copy - - from = builder / app / dist.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 1,
+            "chunk_index": 1
+        }
+    },
+    {
+        "id": "chunk-0002",
+        "text": "# copy only production dependencies and compiled application output. copy package *. json. / run npm ci - - omit = dev & & npm cache clean - - force copy - - from = builder / app / dist. / dist user node expose 3000 cmd [ \" node \", \" dist / server. js \" ] the npm ci command installs the dependency versions in the lock file and fails if the lock file and package manifest are inconsistent. the - - omit = dev option excludes development dependencies from the runtime installation. a non - root user reduces the impact of a compromised application process. the example assumes the project builds into dist / and starts from dist / server. js. those paths must match the actual application. 1. 3 excluding unnecessary files a. dockerignore file prevents local development files and secrets from entering the build context. node _ modules npm - debug. log. git. gitignore. env. env. * coverage dist dockerfile docker - compose. yml readme. md",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 1,
+            "chunk_index": 2
+        }
+    },
+    {
+        "id": "chunk-0003",
+        "text": "devops rag corpus | page 2 do not exclude build output if the dockerfile expects to copy prebuilt output from the host. in the multi - stage example above, the image builds the output internally, so excluding local dist / is appropriate. 1. 4 build and run an image # build an image and assign a versioned tag. docker build - t example - api : 1. 0. 0. # start a container and publish container port 3000 on host port 8080. docker run - d \\ - - name example - api \\ - - publish 8080 : 3000 \\ example - api : 1. 0. 0 # inspect the running container. docker ps # follow application logs. docker logs - - follow example - api # stop and remove the container. docker stop example - api docker rm example - api the - - publish 8080 : 3000 option maps host port 8080 to container port 3000. a process listening only on 127. 0. 0. 1 inside the container may not be reachable through the published port ; applications commonly need to listen on 0. 0. 0. 0. 1. 5 docker compose docker compose defines a multi - container application in a yaml file. this example runs an api and a mysql database. services : api : build : context :. ports : - \" 8080 : 3000 \" environment : node _ env : production db _ host : database db _ port : \" 3306 \" db _ name : appdb db _ user : appuser db _ password : $ { db _ password } depends _ on : database : condition : service _ healthy database : image : mysql : 8. 4 environment : mysql _ database : appdb mysql _ user : appuser mysql _ password : $ { db _ password } mysql _ root _ password : $ { mysql _ root _ password } volumes : - mysql _ data : / var / lib / mysql healthcheck : test : [ \" cmd \", \" healthcheck. sh \", \" - - connect \", \" - - innodb _ initialized \" ] interval : 10s timeout : 5s retries : 10 volumes : mysql _ data : run the stack with : docker compose up - - build - - detach dock",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 2,
+            "chunk_index": 3
+        }
+    },
+    {
+        "id": "chunk-0004",
+        "text": "\" - - innodb _ initialized \" ] interval : 10s timeout : 5s retries : 10 volumes : mysql _ data : run the stack with : docker compose up - - build - - detach docker compose ps docker compose logs - - follow docker compose down docker compose down removes the containers and network but preserves named volumes by default. add - - volumes only when intentionally deleting persisted database data. 1. 6 operational and security practices pin images to maintained versions and update them regularly. prefer small, trusted base images, but do not choose an image solely because it is small. run as a non - root user where possible. keep credentials out of dockerfiles and source control. use health checks for meaningful service readiness. set cpu and memory limits appropriate to the workload. scan images and dependencies for known vulnerabilities. send logs to a central logging platform. rebuild images when base - image security updates are released.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 2,
+            "chunk_index": 4
+        }
+    },
+    {
+        "id": "chunk-0005",
+        "text": "devops rag corpus | page 3 2. kubernetes fundamentals 2. 1 kubernetes architecture kubernetes is a container orchestration platform. it manages workloads across a cluster and provides mechanisms for scheduling, service discovery, scaling, configuration, and recovery. a kubernetes cluster has a control plane and worker nodes. api server : the front end for kubernetes api requests. etcd : a consistent key - value store for cluster state. scheduler : selects a suitable node for unscheduled pods. controller manager : runs controllers that reconcile actual state with desired state. kubelet : ensures containers described by pod specifications are running on a node. container runtime : runs containers, commonly through a cri - compatible runtime. kube - proxy or equivalent networking implementation : supports service networking, depending on the cluster networking design. kubernetes is declarative. an operator describes the desired state in manifests, and controllers continuously work to make the observed state match it. 2. 2 deploy an application a deployment manages a replicaset and maintains the requested number of pod replicas. apiversion : apps / v1 kind : deployment metadata : name : web - api labels : app : web - api spec : replicas : 3 selector : matchlabels : app : web - api template : metadata : labels : app : web - api spec : containers : - name : web - api image : nginx : 1. 27 - alpine ports : - name : http containerport : 80 resources : requests : cpu : 100m memory : 64mi limits : cpu : 500m memory : 256mi readinessprobe : httpget : path : / port : http initialdelayseconds : 3 periodseconds : 5 livenessprobe : httpget : path : / port : http initialdelayseconds : 10 periodseconds : 10 the selector must match the labels on the pod template. resource requests influence scheduling ; limits constrain resource consumption. a readiness probe controls whether a pod receives service traffic. a liveness probe can trigger a container restart when the application is unhealthy. apply and inspect the deployment : kubectl apply - f deployment. yaml kubectl get deployments kubectl get pods - l app = web - api kubectl describe deployment web - api 2. 3 expose the application with a service a",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 3,
+            "chunk_index": 5
+        }
+    },
+    {
+        "id": "chunk-0006",
+        "text": "kubectl apply - f deployment. yaml kubectl get deployments kubectl get pods - l app = web - api kubectl describe deployment web - api 2. 3 expose the application with a service a service provides a stable virtual endpoint for a changing set of pods. apiversion : v1 kind : service metadata : name : web - api spec : type : clusterip selector : app : web - api ports : - name : http port : 80 targetport : http",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 3,
+            "chunk_index": 6
+        }
+    },
+    {
+        "id": "chunk-0007",
+        "text": "devops rag corpus | page 4 protocol : tcp the service selects pods using app : web - api. the service port is 80, while targetport refers to the named container port http. for external http access, a cluster may use an ingress controller or a gateway api implementation. creating an ingress resource alone does not install or configure an ingress controller. 2. 4 configuration and secrets configmaps store non - confidential configuration. secrets are intended for sensitive values, but base64 encoding is not encryption. apiversion : v1 kind : configmap metadata : name : web - api - config data : log _ level : \" info \" app _ mode : \" production \" a pod can consume the configmap as environment variables : apiversion : v1 kind : pod metadata : name : config - demo spec : containers : - name : app image : nginx : 1. 27 - alpine envfrom : - configmapref : name : web - api - config for production secrets, enable encryption at rest where supported, apply least - privilege rbac, restrict access to namespaces, and consider an external secrets manager. 2. 5 scaling and rolling updates # change the desired replica count. kubectl scale deployment / web - api - - replicas = 5 # inspect rollout status. kubectl rollout status deployment / web - api # view rollout history. kubectl rollout history deployment / web - api # undo the most recent rollout if necessary. kubectl rollout undo deployment / web - api a rolling update gradually replaces old pods with new ones. readiness probes and appropriate rollout settings help prevent unavailable or unready pods from receiving traffic. 2. 6 troubleshooting common workload problems kubectl get pods - o wide kubectl describe pod pod _ name kubectl logs pod _ name kubectl logs pod _ name - - previous kubectl get events - - sort - by =. metadata. creationtimestamp kubectl get endpoints web - api typical symptoms include : imagepullbackoff : the image name, tag, registry credentials, or network access may be incorrect. crashloopbackoff : the container repeatedly exits ; inspect current and previous logs. pending : the scheduler cannot place the pod, often because",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 4,
+            "chunk_index": 7
+        }
+    },
+    {
+        "id": "chunk-0008",
+        "text": "##pullbackoff : the image name, tag, registry credentials, or network access may be incorrect. crashloopbackoff : the container repeatedly exits ; inspect current and previous logs. pending : the scheduler cannot place the pod, often because of resource constraints, taints, or storage requirements. service has no endpoints : check selectors, pod labels, and readiness status. 3. terraform and infrastructure as code 3. 1 infrastructure as code infrastructure as code ( iac ) defines infrastructure in machine - readable configuration files. terraform uses providers to interact with cloud platforms and other apis. a typical terraform workflow is : 1. write configuration describing the desired infrastructure. 2. initialize providers and modules. 3. validate configuration. 4. generate and review an execution plan. 5. apply the approved plan. 6. inspect state and outputs. 7. update or destroy resources through controlled workflows. terraform configuration is declarative. terraform compares the desired configuration with its state and the real infrastructure to determine proposed changes.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 4,
+            "chunk_index": 8
+        }
+    },
+    {
+        "id": "chunk-0009",
+        "text": "devops rag corpus | page 5 3. 2 a basic aws provider and s3 bucket the following example creates a private s3 bucket. the bucket name must be globally unique. terraform { required _ version = \" > = 1. 6. 0 \" required _ providers { aws = { source = \" hashicorp / aws \" version = \" ~ > 5. 0 \" } } } provider \" aws \" { region = var. aws _ region } variable \" aws _ region \" { description = \" aws region for the infrastructure. \" type = string default = \" eu - north - 1 \" } variable \" bucket _ name \" { description = \" globally unique s3 bucket name. \" type = string } resource \" aws _ s3 _ bucket \" \" artifacts \" { bucket = var. bucket _ name tags = { name = \" application - artifacts \" environment = \" development \" managedby = \" terraform \" } } resource \" aws _ s3 _ bucket _ public _ access _ block \" \" artifacts \" { bucket = aws _ s3 _ bucket. artifacts. id block _ public _ acls = true block _ public _ policy = true ignore _ public _ acls = true restrict _ public _ buckets = true } output \" artifact _ bucket _ name \" { description = \" name of the created artifact bucket. \" value = aws _ s3 _ bucket. artifacts. bucket } the aws provider obtains credentials through the standard aws credential chain, such as environment variables, shared configuration, or an assigned workload role. avoid hardcoding access keys in terraform files. 3. 3 initialize, validate, plan, and apply terraform init terraform fmt - recursive terraform validate terraform plan - out = tfplan terraform show tfplan terraform apply tfplan terraform init downloads provider plugins and initializes the working directory. terraform fmt formats configuration. terraform validate checks syntax and internal consistency. terraform plan previews changes. applying a saved plan helps ensure the reviewed plan is the one executed. after applying : terraform output terraform state list terraform state maps configuration resources to real infrastructure objects. treat state as sensitive because it can contain secrets and infrastructure metadata. 3. 4 remote state and state locking a team should avoid relying on separate local state files. remote state allows authorized collaborators",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 5,
+            "chunk_index": 9
+        }
+    },
+    {
+        "id": "chunk-0010",
+        "text": "state list terraform state maps configuration resources to real infrastructure objects. treat state as sensitive because it can contain secrets and infrastructure metadata. 3. 4 remote state and state locking a team should avoid relying on separate local state files. remote state allows authorized collaborators and automation to use a shared state location. a backend may also provide locking to prevent concurrent state modifications. an illustrative s3 backend configuration is : terraform { backend \" s3 \" { bucket = \" company - terraform - state \" key = \" platform / dev / terraform. tfstate \" region = \" eu - north - 1 \" encrypt = true use _ lockfile = true } }",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 5,
+            "chunk_index": 10
+        }
+    },
+    {
+        "id": "chunk-0011",
+        "text": "devops rag corpus | page 6 the backend bucket must exist before terraform initializes this backend. restrict access to the state bucket, enable versioning, and configure appropriate encryption and retention. backend options and locking support depend on the terraform version and backend implementation. 3. 5 variables and environment separation use variables for values that differ by environment. keep reusable infrastructure in modules and supply environment - specific values through separate variable files. # variables. tf variable \" environment \" { description = \" deployment environment. \" type = string validation { condition = contains ( [ \" dev \", \" staging \", \" prod \" ], var. environment ) error _ message = \" environment must be dev, staging, or prod. \" } } # dev. tfvars environment = \" dev \" aws _ region = \" eu - north - 1 \" run a plan for the selected environment : terraform plan - var - file = \" dev. tfvars \" do not use workspaces as a substitute for a sound environment and access - control strategy when environments require materially different permissions or state boundaries. 3. 6 safe terraform practices commit. tf files and lock files to version control. do not commit state files, plan files, or secret variable files. review plans before applying changes. use remote state with access controls and locking. pin provider versions and review upgrades. use modules for reusable patterns. apply least privilege to the identity running terraform. run formatting, validation, and policy checks in ci. protect production applies with approval gates. back up state and understand recovery procedures. 4. amazon web services fundamentals 4. 1 aws regions and availability zones aws provides cloud services in geographic regions. many regions contain multiple availability zones ( azs ), which are physically separate locations engineered for fault isolation. a resilient architecture can distribute application components across multiple azs. region selection should consider latency, service availability, regulatory requirements, data residency, and cost. 4. 2 identity and access management aws identity and access management ( iam ) controls access to aws resources. an iam policy defines allowed or denied actions on resources, optionally under conditions. a narrowly scoped policy example : { \" version \" : \" 2012 - 10 - 17 \", \" statement \" : [ { \" sid \" : \" readoneartifactbucket \", \" effect \" :",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 6,
+            "chunk_index": 11
+        }
+    },
+    {
+        "id": "chunk-0012",
+        "text": ", optionally under conditions. a narrowly scoped policy example : { \" version \" : \" 2012 - 10 - 17 \", \" statement \" : [ { \" sid \" : \" readoneartifactbucket \", \" effect \" : \" allow \", \" action \" : [ \" s3 : getobject \", \" s3 : listbucket \" ], \" resource \" : [ \" arn : aws : s3 : : : company - artifacts \", \" arn : aws : s3 : : : company - artifacts / * \" ] } ] } the policy grants read access to a specific bucket and its objects. real policies should be tested and reviewed. avoid broad permissions such as action : \" * \" and resource : \" * \" unless there is a justified administrative requirement. prefer temporary credentials and iam roles over long - lived access keys. for human access, iam identity center can provide centralized access to aws accounts and roles. 4. 3 virtual private cloud",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 6,
+            "chunk_index": 12
+        }
+    },
+    {
+        "id": "chunk-0013",
+        "text": "devops rag corpus | page 7 amazon virtual private cloud ( vpc ) provides a logically isolated network. a vpc has an ipv4 cidr range, such as 10. 0. 0. 0 / 16, from which subnet ranges are allocated. typical network components include : public subnet : has a route to an internet gateway ; resources still need suitable public addressing and security rules to be reachable. private subnet : does not have a direct route to an internet gateway. internet gateway : enables internet connectivity for resources with suitable routes and addressing. nat gateway : allows resources in private subnets to initiate outbound ipv4 connections without accepting unsolicited inbound internet connections. route table : determines where subnet traffic is directed. security group : stateful virtual firewall associated with network interfaces. network acl : stateless subnet - level traffic filter. example route table entries : destination target purpose 10. 0. 0. 0 / 16 local vpc - internal traffic 0. 0. 0. 0 / 0 internet gateway internet route for a public subnet a secure design places application servers in private subnets where possible and exposes only required entry points, such as a load balancer, to the internet. 4. 4 compute and storage services amazon ec2 provides resizable virtual servers. instance selection should consider cpu, memory, network throughput, storage, and workload characteristics. amazon s3 provides object storage. common uses include static assets, backups, logs, and build artifacts. use block public access, encryption, lifecycle rules, and bucket policies appropriate to the data. amazon ebs provides block storage volumes for ec2 instances. ebs volumes are typically attached to instances in the same availability zone. elastic load balancing distributes incoming traffic across registered targets. application load balancers support http and https routing, while network load balancers operate at the transport layer. 4. 5 launching and inspecting an ec2 instance with the aws cli the following commands illustrate how to inspect aws identity and available resources. the account must already have appropriate credentials and permissions. # confirm which identity the cli is using. aws sts get - caller - identity # list available ec2 instances in the configured region. aws ec2 describe - instances \\ - - query ' reservations [ ]. instances [ ]. [ instanceid, state. name, instancetype ] ' \\ - - output table # list s3 buckets visible",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 7,
+            "chunk_index": 13
+        }
+    },
+    {
+        "id": "chunk-0014",
+        "text": "instances in the configured region. aws ec2 describe - instances \\ - - query ' reservations [ ]. instances [ ]. [ instanceid, state. name, instancetype ] ' \\ - - output table # list s3 buckets visible to the current identity. aws s3 ls before creating resources, confirm the target account and region. use tags to identify ownership, environment, and cost center. 4. 6 monitoring, logging, and cost management amazon cloudwatch provides metrics, logs, alarms, and dashboards. cloudtrail records account activity and api events. aws config can track resource configuration and compliance. operational practices include : create alarms for service health and resource saturation. retain logs according to operational and compliance needs. enable cloudtrail in the accounts and regions that require audit coverage. use cost allocation tags and budgets. review idle resources and unattached storage. prefer managed services when their operational benefits justify their cost. test backup restoration, not only backup creation. 5. continuous integration and continuous delivery 5. 1 ci / cd concepts continuous integration ( ci ) is the practice of frequently integrating code changes and automatically validating them. continuous delivery ( cd ) keeps software in a deployable state and may require approval before production release. continuous deployment automatically releases qualifying changes to production. a typical pipeline includes : 1. source checkout. 2. dependency installation. 3. formatting and linting.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 7,
+            "chunk_index": 14
+        }
+    },
+    {
+        "id": "chunk-0015",
+        "text": "devops rag corpus | page 8 4. unit and integration tests. 5. security and dependency scanning. 6. build and package. 7. publish an immutable artifact or container image. 8. deploy to a test environment. 9. verify deployment health. 10. promote to production with suitable controls. a reliable pipeline should be repeatable, observable, secure, and fast enough to provide useful feedback. 5. 2 github actions workflow the following workflow runs checks for a node. js application when changes are pushed or a pull request targets the main branch. name : node. js ci on : push : branches : - main pull _ request : branches : - main permissions : contents : read jobs : test : runs - on : ubuntu - latest steps : - name : check out source code uses : actions / checkout @ v4 - name : set up node. js uses : actions / setup - node @ v4 with : node - version : \" 22 \" cache : npm - name : install dependencies run : npm ci - name : run lint checks run : npm run lint - - if - present - name : run tests run : npm test - - if - present - name : build application run : npm run build - - if - present the workflow uses a read - only repository permission because it only checks code. a workflow that publishes packages or deploys infrastructure needs additional, narrowly scoped permissions. for higher supply - chain assurance, pin third - party actions to reviewed full commit shas and update them through a controlled process. 5. 3 build and publish a container image a container publishing job should use immutable tags, authenticate through a short - lived identity where possible, and avoid exposing credentials in logs. illustrative github actions steps : - name : set up docker buildx uses : docker / setup - buildx - action @ v3 - name : log in to container registry uses : docker / login - action @ v3 with : registry : ghcr. io username : $ { { github. actor } } password : $ { { secrets. github _ token } } - name : build and push image uses : docker / build - push - action @ v6 with : context :. push : true tags : | ghcr. io / $ { { gi",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 8,
+            "chunk_index": 15
+        }
+    },
+    {
+        "id": "chunk-0016",
+        "text": "{ secrets. github _ token } } - name : build and push image uses : docker / build - push - action @ v6 with : context :. push : true tags : | ghcr. io / $ { { github. repository } } : $ { { github. sha } } ghcr. io / $ { { github. repository } } : latest the workflow needs suitable package permissions and repository settings. in production, consider publishing a digest, signing the image, generating a software bill of materials ( sbom ), and scanning the image before deployment. 5. 4 deployment with environment protection a production deployment should use an environment with required reviewers and scoped secrets. the deployment job should run only after validation and artifact publication have succeeded.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 8,
+            "chunk_index": 16
+        }
+    },
+    {
+        "id": "chunk-0017",
+        "text": "devops rag corpus | page 9 deploy - production : needs : test runs - on : ubuntu - latest environment : production permissions : contents : read packages : read steps : - name : deploy application run : | echo \" deploy the tested image digest to production here. \" the echo line is a placeholder, not a real deployment command. a real deployment step should authenticate securely to the target platform and deploy the exact image digest produced by the build job. 5. 5 pipeline security use least - privilege github _ token permissions. store credentials in approved secrets or use oidc federation. do not print secrets or write them into build artifacts. pin and review third - party actions. scan dependencies and container images. protect production environments with approvals. separate build and deployment permissions. avoid running untrusted pull - request code with privileged secrets. keep deployment credentials short - lived where possible. 5. 6 reliability and observability a pipeline is part of the production system. teams should monitor job duration, failure rates, queue time, deployment frequency, and recovery time. useful practices include : make build steps deterministic. cache dependencies safely to reduce repeated work. keep test output and deployment logs accessible. use health checks after deployment. support rollback to a known - good artifact. avoid deploying mutable tags as the only release reference. record the source commit and artifact digest for every release. 6. cross - topic operational scenarios 6. 1 deploying a containerized application a common delivery path combines all five topics : 1. a developer commits application code. 2. ci installs dependencies and runs tests. 3. the pipeline builds a docker image. 4. the image is scanned and published to a registry. 5. terraform provisions or updates the required cloud infrastructure. 6. kubernetes deploys the image and maintains the desired number of replicas. 7. aws networking, iam, storage, and monitoring services support the workload. 8. the pipeline verifies health and records the release. each stage has a distinct responsibility. docker packages the application ; kubernetes orchestrates containers ; terraform manages infrastructure ; aws provides cloud resources ; ci / cd automates validation and delivery. 6. 2 example incident : application is unreachable a structured troubleshooting sequence avoids changing several layers at once. # 1. check whether the kubernetes deployment is healthy.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 9,
+            "chunk_index": 17
+        }
+    },
+    {
+        "id": "chunk-0018",
+        "text": "resources ; ci / cd automates validation and delivery. 6. 2 example incident : application is unreachable a structured troubleshooting sequence avoids changing several layers at once. # 1. check whether the kubernetes deployment is healthy. kubectl get deployment web - api kubectl get pods - l app = web - api # 2. inspect recent application logs. kubectl logs deployment / web - api - - tail = 100 # 3. check the service and its endpoints. kubectl get service web - api kubectl get endpoints web - api # 4. inspect recent cluster events. kubectl get events - - sort - by =. metadata. creationtimestamp # 5. confirm the cloud load balancer and network configuration # using the relevant aws console or aws cli commands.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 9,
+            "chunk_index": 18
+        }
+    },
+    {
+        "id": "chunk-0019",
+        "text": "devops rag corpus | page 10 possible causes include a failing application process, incorrect container port, failed readiness probe, mismatched service selector, missing load - balancer target registration, restrictive security - group rules, or a dns problem. 6. 3 change management infrastructure and application changes should be traceable. use version control, pull - request review, automated checks, documented approvals, and rollback plans. for infrastructure, review the terraform plan before applying. for applications, retain the previous known - good image digest and deployment configuration. 7. glossary term meaning api application programming interface az availability zone ci continuous integration cd continuous delivery or continuous deployment, depending on context cidr classless inter - domain routing notation for ip ranges container an isolated process created from an image iac infrastructure as code iam identity and access management image a packaged filesystem and metadata used to create containers ingress kubernetes api resource for http ( s ) routing, usually implemented by a controller pod smallest deployable kubernetes workload unit rag retrieval - augmented generation rbac role - based access control registry service that stores and distributes container images replicaset kubernetes controller that maintains a set of pod replicas state file terraform record mapping configuration resources to managed objects vpc virtual private cloud 8. corpus metadata and retrieval notes this document is organized into five primary technical topics and two cross - topic reference sections. section topic main concepts 1 docker images, containers, dockerfiles, compose, security 2 kubernetes architecture, deployments, services, configuration, troubleshooting 3 terraform providers, resources, state, plans, modules, remote state 4 aws iam, vpc, ec2, s3, monitoring, cost management 5 ci / cd github actions, testing, image publishing, deployment, security 6 cross - topic scenarios end - to - end delivery, troubleshooting, change management 7 glossary shared terminology for the framework comparison, use the same source document, embedding model, chunking policy, retrieval depth, and evaluation questions for each implementation. record the extracted text and chunk metadata so results can be traced to the source section. recommended metadata for each chunk : { \" source \" : \" devops - rag - corpus. md \", \" section \" : \" 2. kubernetes fundamentals \", \" topic \" : \" kubernetes \", \" content _ type \" : \" explanation \"",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 10,
+            "chunk_index": 19
+        }
+    },
+    {
+        "id": "chunk-0020",
+        "text": "\" source \" : \" devops - rag - corpus. md \", \" section \" : \" 2. kubernetes fundamentals \", \" topic \" : \" kubernetes \", \" content _ type \" : \" explanation \", \" language \" : \" en \" } code blocks should remain intact where possible. if a chunking strategy splits code examples, record that behavior and compare it separately from a controlled benchmark that uses a shared set of preprocessed chunks. end of corpus.",
+        "metadata": {
+            "source": "devops-rag-corpus.pdf",
+            "page": 10,
+            "chunk_index": 20
+        }
+    }
+]

@@ -1,0 +1,23 @@
+{
+  "frameworks": {
+    "llamaindex": {
+      "package": "llama-index",
+      "version": "pending"
+    },
+    "haystack": {
+      "package": "haystack-ai",
+      "version": "pending"
+    },
+    "langchain": {
+      "package": "langchain",
+      "version": "pending"
+    },
+    "llamastack": {
+      "package": "llama-stack",
+      "version": "0.2.19"
+    }
+  },
+
+  "python": "3.12.10",
+  "llm": "qwen2.5:3b"
+}
