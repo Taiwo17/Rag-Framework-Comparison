@@ -62,11 +62,10 @@ Each framework uses the same preprocessed chunks and shared embeddings to mainta
 
 ```text
 rag-framework-comparison/
+│
 ├── .env.example
 ├── .gitignore
 ├── README.md
-├── docker-compose.yml
-├── requirements.txt
 ├── shared_ingestion.py
 ├── verify_corpus.py
 ├── the-process.md
@@ -95,13 +94,30 @@ rag-framework-comparison/
 │   ├── questions.json
 │   ├── shared_chunks.json
 │   ├── shared_embeddings.json
+│   │
 │   ├── run_haystack_rag.py
 │   ├── run_langchain_rag.py
 │   ├── run_llamaindex_rag.py
 │   ├── run_llamastack_rag.py
+│   │
 │   ├── test_haystack_retrieval.py
 │   ├── test_langchain_retrieval.py
 │   ├── test_llamaindex_retrieval.py
+│   │
+│   ├── haystack_store.json
+│   │
+│   ├── vector_stores/
+│   │   ├── langchain/
+│   │   │   ├── index.faiss
+│   │   │   └── index.pkl
+│   │   │
+│   │   └── llamaindex/
+│   │       ├── default__vector_store.json
+│   │       ├── docstore.json
+│   │       ├── graph_store.json
+│   │       ├── image__vector_store.json
+│   │       └── index_store.json
+│   │
 │   └── results/
 │       ├── answer-quality-review.md
 │       ├── haystack-results.json
@@ -109,8 +125,18 @@ rag-framework-comparison/
 │       ├── llamaindex-results.json
 │       └── llamastack-results.json
 │
-└── reports/
-    └── benchmark-results.md
+├── reports/
+│   └── benchmark-results.md
+│
+└── screenshots/
+    ├── 01-project-structure.png
+    ├── 02-corpus-verification.png
+    ├── 03-shared-chunks.png
+    ├── 04-embedding-generation.png
+    ├── 05-llamaindex-implementation.png
+    ├── 06-haystack-implementation.png
+    ├── 07-langchain-implementation.png
+    └── 08-llamastack-implementation.png
 ```
 
 ## 6. Evaluation Methodology
