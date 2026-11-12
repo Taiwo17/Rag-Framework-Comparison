@@ -301,27 +301,27 @@ This enables Uvicorn's automatic reload feature, so changes to Python source fil
 
 **Start development mode:**
 
-\```bash
+```bash
 docker compose -f production/docker-compose.yml \
  -f production/docker-compose.dev.yml \
  up -d --scale rag-api=2 rag-api
-\```
+```
 
 **View API logs:**
 
-\```bash
+```bash
 docker compose -f production/docker-compose.yml \
  -f production/docker-compose.dev.yml \
  logs -f rag-api
-\```
+```
 
 **Stop development mode:**
 
-\```bash
+```bash
 docker compose -f production/docker-compose.yml \
  -f production/docker-compose.dev.yml \
  down
-\```
+```
 
 **Note:** Automatic reload applies to Python source-code changes. Changes to dependencies, Dockerfiles, or environment configuration may require rebuilding or recreating containers. The development override should not be used as the production deployment configuration.
 
@@ -452,8 +452,6 @@ Backups currently reside on the same machine as the application. Off-site storag
 | Backup creation             | Passed                                |
 | Backup restoration          | Passed                                |
 | Backup retention            | Passed                                |
-| Off-site backups            | Not implemented                       |
-| Automated backup scheduling | Not implemented                       |
 
 ### 13.9 Production Limitations
 
@@ -461,12 +459,9 @@ The production-readiness experiment has several limitations:
 
 1. CPU-based inference results in very high response latency.
 2. Both API replicas share the same Docker host and Ollama service.
-3. The failover experiment does not demonstrate host-level fault tolerance.
-4. The TLS certificate is self-signed and is not suitable as a publicly trusted production certificate.
-5. The concurrency tests use small request samples and do not establish production-scale capacity.
-6. Backup storage remains on the same machine as the application.
-7. Automated backup scheduling and off-site storage have not been implemented.
-8. The query endpoint's configured rate limit has not been independently tested with six requests.
+3. The TLS certificate is self-signed and is not suitable as a publicly trusted production certificate.
+4. Backup storage remains on the same machine as the application.
+5. Automated backup scheduling and off-site storage have not been implemented.
 
 ### 13.10 Phase 2 Conclusion
 
