@@ -1,0 +1,12 @@
+
+fastapi==0.162.3
+uvicorn[standard]==0.54.0
+python-dotenv==1.2.4
+langchain==1.4.9
+langchain-community==0.4.2
+langchain-huggingface==1.2.3
+langchain-ollama==1.1.0
+sentence-transformers
+faiss-cpu
+slowapi==0.1.10
+redis==8.1.0

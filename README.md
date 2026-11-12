@@ -232,7 +232,7 @@ The experiment has several limitations:
 - Execution times are from individual runs and may be affected by model warmup, CPU utilization, and server conditions.
 - LlamaStack returned fewer chunks than the other frameworks, affecting direct retrieval comparisons.
 - Answer quality was assessed manually and is not a standardized evaluation metric.
-- Production-scale concurrency, high availability, security, and disaster recovery were not tested.
+- Production-scale concurrency, high availability, security, and disaster recovery were outside the scope of the initial benchmark. These areas were subsequently investigated in Phase 2 through production-readiness engineering. The results and limitations are documented in Section 13.
 - Native ingestion and chunking capabilities were reviewed but not independently benchmarked because shared preprocessing was used.
 
 The results should therefore be interpreted as a controlled, small-scale comparison.
@@ -281,3 +281,196 @@ This project demonstrates that LlamaIndex, Haystack, LangChain, and LlamaStack c
 Although their benchmark results were relatively close in answer quality, their architectures and operational approaches differ.
 
 The experiment highlights the importance of evaluating RAG frameworks not only by their ability to generate answers but also by retrieval quality, integration flexibility, observability, execution behavior, and production requirements.
+
+---
+
+## 13. Phase 2: Production-Readiness Engineering
+
+Following the framework benchmark, the project was extended to investigate the production-readiness requirements of a RAG application.
+
+The second phase uses the LangChain implementation to build and test a containerized RAG API with security, scalability, availability, and recovery controls.
+
+### Development Workflow: Automatic Code Reloading
+
+The project includes a separate Docker Compose override for development.
+
+This enables Uvicorn's automatic reload feature, so changes to Python source files are detected and the API process restarts automatically without recreating containers.
+
+**Start development mode:**
+
+\```bash
+docker compose -f production/docker-compose.yml \
+ -f production/docker-compose.dev.yml \
+ up -d --scale rag-api=2 rag-api
+\```
+
+**View API logs:**
+
+\```bash
+docker compose -f production/docker-compose.yml \
+ -f production/docker-compose.dev.yml \
+ logs -f rag-api
+\```
+
+**Stop development mode:**
+
+\```bash
+docker compose -f production/docker-compose.yml \
+ -f production/docker-compose.dev.yml \
+ down
+\```
+
+**Note:** Automatic reload applies to Python source-code changes. Changes to dependencies, Dockerfiles, or environment configuration may require rebuilding or recreating containers. The development override should not be used as the production deployment configuration.
+
+### 13.1 Production Architecture
+
+The production implementation uses:
+
+| Component               | Technology          |
+| ----------------------- | ------------------- |
+| API framework           | FastAPI             |
+| RAG framework           | LangChain           |
+| LLM                     | Ollama – qwen2.5:3b |
+| Embedding model         | all-MiniLM-L6-v2    |
+| Vector database         | FAISS               |
+| Containerization        | Docker              |
+| Container orchestration | Docker Compose      |
+| Reverse proxy           | Nginx               |
+| Rate-limit storage      | Redis               |
+| Load testing            | Locust              |
+| Transport security      | HTTPS/TLS           |
+
+Architecture:
+
+Client → Nginx → FastAPI Replicas → LangChain RAG Pipeline → FAISS / Ollama
+
+Redis provides shared rate-limit storage across API replicas.
+
+### 13.2 API Implementation
+
+A REST API was implemented using FastAPI.
+
+| Endpoint        | Method | Purpose                               |
+| --------------- | ------ | ------------------------------------- |
+| `/health`       | GET    | Application health status             |
+| `/api/v1/query` | POST   | Submit a question to the RAG pipeline |
+
+The query endpoint returns the generated answer, retrieved source documents, and retrieval, generation, and total execution times.
+
+### 13.3 Docker Deployment
+
+The API was containerized using Docker and deployed through Docker Compose.
+
+The deployment includes:
+
+- FastAPI application containers.
+- Nginx reverse proxy.
+- Redis rate-limit storage.
+- Connection to the host-based Ollama inference service.
+- Mounted FAISS vector-store files.
+
+The API successfully loaded the vector store and LLM client and processed an end-to-end RAG query.
+
+### 13.4 Concurrency and Load Testing
+
+Locust was used to evaluate API behaviour under concurrent requests.
+
+An `asyncio.Semaphore(1)` was introduced to limit active LLM generation to one request per API process.
+
+The tests recorded zero failed requests in the small samples completed. However, average query latency remained high, primarily because inference was performed on CPU-based hardware.
+
+The results do not establish production-scale throughput or sustainable concurrency.
+
+### 13.5 High Availability and Failover
+
+Two FastAPI replicas were deployed behind Nginx.
+
+A failover test was performed by stopping one API replica while sending health-check requests through the reverse proxy.
+
+Nginx successfully routed requests to the surviving replica. The stopped replica was subsequently restored, and both replicas returned to a healthy state.
+
+This demonstrates basic application-level failover within a single Docker host.
+
+### 13.6 Security and Container Hardening
+
+The following security controls were implemented and tested:
+
+- API-key authentication using the `X-API-Key` header.
+- Secure API-key comparison using `secrets.compare_digest()`.
+- Redis-backed rate limiting.
+- Request validation using Pydantic.
+- Environment-based secret configuration.
+- CORS restrictions.
+- HTTPS/TLS through Nginx.
+- Nginx security response headers.
+- Redis authentication.
+- Non-root API container execution.
+- Docker capability restrictions and `no-new-privileges`.
+- Container CPU and memory resource limits.
+- Read-only mounts for the vector store and application source.
+
+The query endpoint is configured for five requests per minute. The shared Redis rate-limiting mechanism was verified, although the query endpoint's six-request limit was not independently tested.
+
+### 13.7 Disaster Recovery
+
+A timestamped FAISS backup procedure was implemented using a Bash script.
+
+The recovery process includes:
+
+- Copying the FAISS index and document metadata.
+- Generating SHA-256 checksums.
+- Verifying backup integrity.
+- Restoring the files into an isolated directory.
+- Loading the restored index using LangChain.
+- Retaining the five most recent timestamped backups.
+
+The restoration test successfully loaded all 20 indexed documents.
+
+The retention cleanup logic was also tested successfully.
+
+Backups currently reside on the same machine as the application. Off-site storage and automated backup scheduling remain outstanding improvements.
+
+### 13.8 Production-Readiness Assessment
+
+| Area                        | Observed status                       |
+| --------------------------- | ------------------------------------- |
+| REST API implementation     | Completed                             |
+| Docker containerization     | Tested                                |
+| Nginx reverse proxy         | Tested                                |
+| HTTPS/TLS                   | Tested with a self-signed certificate |
+| Concurrent request handling | Initial testing completed             |
+| Multiple API replicas       | Tested                                |
+| Single-replica failover     | Passed                                |
+| API authentication          | Verified                              |
+| Redis-backed rate limiting  | Verified                              |
+| Request validation          | Verified                              |
+| Container hardening         | Verified                              |
+| Resource limits             | Verified                              |
+| Backup creation             | Passed                                |
+| Backup restoration          | Passed                                |
+| Backup retention            | Passed                                |
+| Off-site backups            | Not implemented                       |
+| Automated backup scheduling | Not implemented                       |
+
+### 13.9 Production Limitations
+
+The production-readiness experiment has several limitations:
+
+1. CPU-based inference results in very high response latency.
+2. Both API replicas share the same Docker host and Ollama service.
+3. The failover experiment does not demonstrate host-level fault tolerance.
+4. The TLS certificate is self-signed and is not suitable as a publicly trusted production certificate.
+5. The concurrency tests use small request samples and do not establish production-scale capacity.
+6. Backup storage remains on the same machine as the application.
+7. Automated backup scheduling and off-site storage have not been implemented.
+8. The query endpoint's configured rate limit has not been independently tested with six requests.
+
+### 13.10 Phase 2 Conclusion
+
+The second phase extended the original RAG benchmark into a containerized API deployment with multiple application replicas, reverse-proxy routing, authentication, rate limiting, container hardening, and disaster recovery procedures.
+
+The experiments demonstrated successful API deployment, basic application-level failover, security-control operation, and successful FAISS restoration.
+
+The project therefore provides a practical foundation for production-oriented RAG engineering while identifying the additional work required for a more resilient deployment.
+
+**Phase 2 status:** Core implementation and documented tests completed, with further operational improvements identified.

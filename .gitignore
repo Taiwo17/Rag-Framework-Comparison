@@ -35,3 +35,13 @@ llamastack-rag/
 # IDE
 .vscode/
 .idea/
+
+# TLS certificates and private keys
+production/nginx/certs/
+
+
+# Generated FAISS backups and restore-test data
+production/backup/faiss_*/
+production/backup/restore-test/
+
+the-process.md
