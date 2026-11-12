@@ -267,12 +267,15 @@ Refer to `the-process.md` for the detailed setup and implementation history.
 
 ## 11. Project Documentation
 
-- `feature-comparison-matrix.md` — framework capabilities, production readiness, and decision guide.
-- `reports/benchmark-results.md` — benchmark findings.
-- `evaluation/results/answer-quality-review.md` — manual answer-quality assessment.
-- `the-process.md` — project implementation process.
-- `configs/rag-config.json` — shared experiment configuration.
-- `configs/framework-versions.json` — framework version information.
+The following documents provide additional information about the project's implementation, evaluation, and findings.
+
+- [`feature-comparison-matrix.md`](feature-comparison-matrix.md) — framework capabilities, production readiness, and decision guide.
+- [`reports/benchmark-results.md`](reports/benchmark-results.md) — benchmark findings and performance results.
+- [`Final Evaluation Report`](production/final-evaluation.md) — consolidated evaluation of the initial framework benchmark and Phase 2 production-readiness engineering.
+- [`evaluation/results/answer-quality-review.md`](evaluation/results/answer-quality-review.md) — manual answer-quality assessment.
+- [`the-process.md`](the-process.md) — project implementation process.
+- [`configs/rag-config.json`](configs/rag-config.json) — shared experiment configuration.
+- [`configs/framework-versions.json`](configs/framework-versions.json) — framework version information.
 
 ## 12. Conclusion
 

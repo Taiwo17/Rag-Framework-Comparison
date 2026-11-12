@@ -25,7 +25,6 @@ The FAISS vector store was copied successfully, and both backup files passed che
 
 ## Limitations
 
-- This test verifies backup creation and file integrity, not a complete restoration.
 - Backups are currently stored on the same machine as the application.
 - Off-site storage and automated backup scheduling are not yet implemented.
 
