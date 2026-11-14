@@ -2,11 +2,17 @@
 fastapi==0.162.3
 uvicorn[standard]==0.54.0
 python-dotenv==1.2.4
+
+# LangChain and integrations
 langchain==1.4.9
 langchain-community==0.4.2
 langchain-huggingface==1.2.3
 langchain-ollama==1.1.0
-sentence-transformers
-faiss-cpu
+
+# Embeddings and vector search
+sentence-transformers==6.3.0
+faiss-cpu==1.16.0
+
+# Rate limiting and Redis
 slowapi==0.1.10
 redis==8.1.0

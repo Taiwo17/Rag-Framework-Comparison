@@ -1,0 +1,12 @@
+# LangChain framework and integrations
+langchain==1.4.9
+langchain-community==0.4.2
+langchain-core==1.7.6
+langchain-huggingface==1.2.3
+langchain-ollama==1.1.0
+
+# Shared embedding and vector dependencies
+sentence-transformers==6.2.0
+torch==2.15.0
+faiss-cpu==1.15.1
+ollama==0.6.3

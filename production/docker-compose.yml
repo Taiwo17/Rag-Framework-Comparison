@@ -14,10 +14,12 @@ services:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       VECTOR_STORE_PATH: /app/evaluation/vector_stores/langchain
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      HF_HOME: /home/appuser/.cache/huggingface
 
     volumes:
       - ../evaluation/vector_stores/langchain:/app/evaluation/vector_stores/langchain:ro
       - ./api:/app/production/api:ro
+      - huggingface_cache:/home/appuser/.cache/huggingface
 
     depends_on:
       redis:
@@ -48,7 +50,7 @@ services:
           'CMD',
           'python',
           '-c',
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=5)",
         ]
       interval: 30s
       timeout: 10s
@@ -100,3 +102,6 @@ services:
       retries: 5
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+volumes:
+  huggingface_cache:

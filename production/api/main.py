@@ -1,10 +1,15 @@
 import asyncio
 import os
 import time
+import math
 import hashlib
 from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
+import json
+from urllib.request import Request as URLRequest, urlopen
+from urllib.error import URLError
+from fastapi.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
@@ -23,6 +28,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
+from urllib.parse import urlsplit
 
 
 # Load production environment variables
@@ -31,16 +37,104 @@ load_dotenv(BASE_DIR / "production" / ".env")
 
 
 # Application configuration
-APP_NAME = os.getenv("APP_NAME", "Springer Capital RAG API")
-OLLAMA_BASE_URL = os.getenv(
+def get_required_secret(name: str) -> str:
+    value = os.getenv(name)
+
+    if not value or not value.strip():
+        raise RuntimeError(
+            f"Required environment variable {name} is not configured."
+        )
+
+    return value
+
+
+def get_positive_int(name: str, default: str) -> int:
+    value = os.getenv(name, default)
+
+    try:
+        result = int(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"{name} must be a valid integer. Received: {value!r}"
+        ) from exc
+
+    if result <= 0:
+        raise RuntimeError(
+            f"{name} must be greater than zero. Received: {result}"
+        )
+
+    return result
+
+def get_positive_float(name: str, default: str) -> float:
+    value = os.getenv(name, default)
+
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"{name} must be a valid number. Received: {value!r}"
+        ) from exc
+
+    if not math.isfinite(result) or result <= 0:
+        raise RuntimeError(
+            f"{name} must be a finite number greater than zero. "
+            f"Received: {result}"
+        )
+
+    return result
+
+
+def validate_http_url(name: str, value: str) -> str:
+    try:
+        parsed = urlsplit(value)
+        valid_url = (
+            parsed.scheme in {"http", "https"}
+            and parsed.hostname is not None
+        )
+
+        # Accessing port also detects malformed port values.
+        if parsed.port is not None:
+            valid_url = valid_url and 1 <= parsed.port <= 65535
+
+    except ValueError as exc:
+        raise RuntimeError(
+            f"{name} contains an invalid URL: {value!r}"
+        ) from exc
+
+    if not valid_url:
+        raise RuntimeError(
+            f"{name} must be a valid HTTP or HTTPS URL. "
+            f"Received: {value!r}"
+        )
+
+    return value
+
+
+APP_NAME = os.getenv(
+    "APP_NAME",
+    "Springer Capital RAG API",
+).strip()
+
+if not APP_NAME:
+    raise RuntimeError("APP_NAME cannot be empty.")
+
+OLLAMA_BASE_URL = validate_http_url(
     "OLLAMA_BASE_URL",
-    "http://localhost:11434",
+    os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip(),
 )
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b").strip()
+if not OLLAMA_MODEL:
+    raise RuntimeError("OLLAMA_MODEL cannot be empty.")
+
 EMBEDDING_MODEL = os.getenv(
     "EMBEDDING_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",
-)
+).strip()
+
+if not EMBEDDING_MODEL:
+    raise RuntimeError("EMBEDDING_MODEL cannot be empty.")
+
 VECTOR_STORE_PATH = Path(
     os.getenv(
         "VECTOR_STORE_PATH",
@@ -51,18 +145,53 @@ VECTOR_STORE_PATH = Path(
 if not VECTOR_STORE_PATH.is_absolute():
     VECTOR_STORE_PATH = BASE_DIR / VECTOR_STORE_PATH
 
-TOP_K = int(os.getenv("TOP_K", "4"))
-LLM_SEMAPHORE = asyncio.Semaphore(1)
+TOP_K = get_positive_int("TOP_K", "4")
 
-API_KEY = os.getenv("API_KEY")
+LLM_GENERATION_TIMEOUT_SECONDS = get_positive_float(
+    "LLM_GENERATION_TIMEOUT_SECONDS",
+    "360",
+)
 
-if not API_KEY:
-    raise RuntimeError("API_KEY environment variable is not configured.")
+MAX_ADMITTED_LLM_REQUESTS = get_positive_int(
+    "MAX_ADMITTED_LLM_REQUESTS",
+    "3",
+)
+
+LLM_ADMISSION_TIMEOUT_SECONDS = get_positive_float(
+    "LLM_ADMISSION_TIMEOUT_SECONDS",
+    "0.1",
+)
+
+LLM_QUEUE_WAIT_TIMEOUT_SECONDS = get_positive_float(
+    "LLM_QUEUE_WAIT_TIMEOUT_SECONDS",
+    "30",
+)
+
+HOST = os.getenv("HOST", "0.0.0.0").strip()
+if not HOST:
+    raise RuntimeError("HOST cannot be empty.")
+
+PORT = get_positive_int("PORT", "8000")
+if PORT > 65535:
+    raise RuntimeError("PORT must not exceed 65535.")
+
+API_KEY = get_required_secret("API_KEY")
+REDIS_PASSWORD = get_required_secret("REDIS_PASSWORD")
+
+# Limits the total number of requests admitted into RAG processing.
+# This includes the request generating and requests waiting.
+LLM_ADMISSION_SEMAPHORE = asyncio.BoundedSemaphore(
+    MAX_ADMITTED_LLM_REQUESTS
+)
+
+# Only one request can generate an answer at a time.
+LLM_SEMAPHORE = asyncio.BoundedSemaphore(1)
 
 API_KEY_HEADER = APIKeyHeader(
     name="X-API-Key",
     auto_error=False,
 )
+
 
 def get_api_key_identifier(request: Request):
     api_key = request.headers.get("X-API-Key")
@@ -70,15 +199,8 @@ def get_api_key_identifier(request: Request):
     if not api_key:
         return get_remote_address(request)
 
-    return hashlib.sha256(
-        api_key.encode()
-    ).hexdigest()
+    return hashlib.sha256(api_key.encode()).hexdigest()
 
-
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-
-if not REDIS_PASSWORD:
-    raise RuntimeError("REDIS_PASSWORD environment variable is not configured.")
 
 REDIS_URL = f"redis://:{REDIS_PASSWORD}@redis:6379/0"
 
@@ -122,12 +244,11 @@ class QueryRequest(BaseModel):
         description="Question to ask the RAG system",
     )
 
-    @field_validator("question")
+    @field_validator("question", mode="before")
     @classmethod
-    def validate_question(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("Question cannot be empty.")
+    def strip_question(cls, value):
+        if isinstance(value, str):
+            return value.strip()
         return value
 
 
@@ -224,16 +345,83 @@ app.add_exception_handler(
 
 
 # Health-check endpoint
-@app.get("/health")
-async def health_check():
+# Health-check endpoints
+
+@app.get("/health/live")
+async def liveness_check():
+    """Check whether the API process is running."""
     return {
-        "status": "healthy",
+        "status": "alive",
         "service": APP_NAME,
-        "vector_store_loaded": hasattr(
-            app.state, "vector_store"
-        ),
-        "llm_loaded": hasattr(app.state, "llm"),
     }
+
+
+def check_ollama():
+    """Check Ollama connectivity and configured model availability."""
+    url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags"
+
+    request = URLRequest(
+        url,
+        headers={"Accept": "application/json"},
+    )
+
+    try:
+        with urlopen(request, timeout=3) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        models = data.get("models", [])
+
+        available_models = {
+            model.get("name")
+            for model in models
+            if isinstance(model, dict)
+        }
+
+        return True, OLLAMA_MODEL in available_models
+
+    except (URLError, TimeoutError, OSError, ValueError):
+        return False, False
+
+
+@app.get("/health/ready")
+@app.get("/health")
+async def readiness_check():
+    """Check whether the API is ready to process RAG requests."""
+
+    vector_store_loaded = hasattr(
+        app.state, "vector_store"
+    )
+
+    llm_loaded = hasattr(
+        app.state, "llm"
+    )
+
+    ollama_reachable, ollama_model_available = await asyncio.to_thread(
+        check_ollama
+    )
+
+    ready = all([
+        vector_store_loaded,
+        llm_loaded,
+        ollama_reachable,
+        ollama_model_available,
+    ])
+
+    result = {
+        "status": "ready" if ready else "not_ready",
+        "service": APP_NAME,
+        "checks": {
+            "vector_store_loaded": vector_store_loaded,
+            "llm_client_initialized": llm_loaded,
+            "ollama_reachable": ollama_reachable,
+            "ollama_model_available": ollama_model_available,
+        },
+    }
+
+    return JSONResponse(
+        content=result,
+        status_code=200 if ready else 503,
+    )
 
 # RAG query endpoint
 @app.post("/api/v1/query", response_model=QueryResponse)
@@ -246,10 +434,36 @@ async def query_rag(
     question = payload.question.strip()
 
     start_time = time.perf_counter()
-    retrieval_start = time.perf_counter()
+    # retrieval_start = time.perf_counter()
+
+    admission_acquired = False
+    generation_acquired = False
 
     try:
-        # Retrieve relevant documents
+        # Admit the request before starting retrieval.
+        try:
+            await asyncio.wait_for(
+                LLM_ADMISSION_SEMAPHORE.acquire(),
+                timeout=LLM_ADMISSION_TIMEOUT_SECONDS,
+            )
+            admission_acquired = True
+
+        except TimeoutError:
+            logger.warning(
+                "Request rejected: LLM admission capacity reached"
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "The RAG service is currently busy. "
+                    "Please retry shortly."
+                ),
+            )
+
+        # Start retrieval timing after admission.
+        retrieval_start = time.perf_counter()
+
+        # Retrieve relevant documents.
         retrieved_results = (
             app.state.vector_store.similarity_search_with_score(
                 question,
@@ -258,10 +472,6 @@ async def query_rag(
         )
 
         retrieval_time = time.perf_counter() - retrieval_start
-
-        generation_start = time.perf_counter()
-
-        
 
         if not retrieved_results:
             raise HTTPException(
@@ -295,7 +505,7 @@ async def query_rag(
 
         context = "\n\n".join(context_parts)
 
-        # Generate an answer
+        # Prepare the LLM prompt.
         messages = [
             SystemMessage(content=SYSTEM_PROMPT),
             HumanMessage(
@@ -310,11 +520,41 @@ Answer:"""
             ),
         ]
 
-        async with LLM_SEMAPHORE:
-            response = await app.state.llm.ainvoke(messages)
+        # Wait for the single available generation slot.
+        try:
+            await asyncio.wait_for(
+                LLM_SEMAPHORE.acquire(),
+                timeout=LLM_QUEUE_WAIT_TIMEOUT_SECONDS,
+            )
+            generation_acquired = True
+
+        except TimeoutError:
+            logger.warning(
+                "Request rejected after waiting %s seconds "
+                "for the LLM generation slot",
+                LLM_QUEUE_WAIT_TIMEOUT_SECONDS,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "The language model is currently busy. "
+                    "Please retry shortly."
+                ),
+            )
+
+        # Measure generation after obtaining the slot.
+        generation_start = time.perf_counter()
+
+        try:
+            response = await asyncio.wait_for(
+                app.state.llm.ainvoke(messages),
+                timeout=LLM_GENERATION_TIMEOUT_SECONDS,
+            )
+        finally:
+            LLM_SEMAPHORE.release()
+            generation_acquired = False
 
         generation_time = time.perf_counter() - generation_start
-
         execution_time = time.perf_counter() - start_time
 
         return QueryResponse(
@@ -330,21 +570,46 @@ Answer:"""
     except HTTPException:
         raise
 
+    except TimeoutError:
+        logger.warning(
+            "LLM generation timed out after %s seconds",
+            LLM_GENERATION_TIMEOUT_SECONDS,
+        )
+
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "The language model took too long to generate "
+                "a response. Please try again."
+            ),
+        )
+
     except Exception:
         logger.exception("Unexpected error during RAG query")
 
         raise HTTPException(
             status_code=500,
-            detail="An internal error occurred while processing your request.",
+            detail=(
+                "An internal error occurred while processing "
+                "your request."
+            ),
         )
 
+    finally:
+        # Release permits even if retrieval, generation or response
+        # construction raises an exception.
+        if generation_acquired:
+            LLM_SEMAPHORE.release()
+
+        if admission_acquired:
+            LLM_ADMISSION_SEMAPHORE.release() 
 
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
         "production.api.main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
-        port=int(os.getenv("PORT", "8000")),
+        host=HOST,
+        port=PORT,
         reload=False,
     )

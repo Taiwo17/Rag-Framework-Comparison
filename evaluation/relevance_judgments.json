@@ -1,0 +1,78 @@
+
+{
+  "description": "Shared chunk-level relevance judgments for evaluating retrieval across LlamaIndex, Haystack, LangChain, and LlamaStack.",
+  "grading_scale": {
+    "0": "Irrelevant to the question.",
+    "1": "Partially relevant or provides useful supporting context.",
+    "2": "Directly answers or substantially supports the question."
+  },
+  "metrics": {
+    "top_k": 4,
+    "relevance_threshold": 1,
+    "precision_at_k": "Relevant chunks have grade >= 1.",
+    "mrr_at_k": "Rank of the first chunk with grade >= 1.",
+    "ndcg_at_k": "Uses graded relevance values 0, 1, and 2.",
+    "recall_at_k": "Deferred until the complete relevant chunk set is established for each question.",
+    "framework_native_scores": "Diagnostic only; do not compare raw scores across frameworks."
+  },
+  "judgments": {
+    "Q01": {
+      "chunk-0001": 2,
+      "chunk-0019": 1
+    },
+    "Q02": {
+      "chunk-0002": 2,
+      "chunk-0001": 1
+    },
+    "Q03": {
+      "chunk-0004": 2,
+      "chunk-0003": 1
+    },
+    "Q04": {
+      "chunk-0005": 2
+    },
+    "Q05": {
+      "chunk-0006": 2,
+      "chunk-0007": 2,
+      "chunk-0005": 1
+    },
+    "Q06": {
+      "chunk-0008": 2,
+      "chunk-0007": 1
+    },
+    "Q07": {
+      "chunk-0008": 2,
+      "chunk-0009": 1
+    },
+    "Q08": {
+      "chunk-0010": 2,
+      "chunk-0009": 1,
+      "chunk-0011": 1
+    },
+    "Q09": {
+      "chunk-0009": 2,
+      "chunk-0011": 1
+    },
+    "Q10": {
+      "chunk-0013": 2
+    },
+    "Q11": {
+      "chunk-0012": 2
+    },
+    "Q12": {
+      "chunk-0013": 2
+    },
+    "Q13": {
+      "chunk-0014": 2
+    },
+    "Q14": {
+      "chunk-0017": 2,
+      "chunk-0015": 1
+    },
+    "Q15": {
+      "chunk-0016": 2,
+      "chunk-0017": 2,
+      "chunk-0015": 1
+    }
+  }
+}

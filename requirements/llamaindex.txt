@@ -1,0 +1,11 @@
+# LlamaIndex framework and integrations
+llama-index-core==0.14.25
+llama-index-embeddings-huggingface==0.8.0
+llama-index-llms-ollama==0.11.0
+llama-index-vector-stores-faiss==0.7.0
+
+# Shared embedding and vector dependencies
+sentence-transformers==6.2.0
+torch==2.15.0
+faiss-cpu==1.15.1
+ollama==0.6.3

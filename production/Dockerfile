@@ -11,6 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Configure Hugging Face cache location
+ENV HF_HOME=/home/appuser/.cache/huggingface
+
+# Create cache directory and assign ownership to appuser
+RUN mkdir -p /home/appuser/.cache/huggingface \
+    && chown -R appuser:appuser /home/appuser/.cache
+
 # Copy dependency definitions
 COPY production/requirements.txt ./requirements.txt
 

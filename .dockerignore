@@ -1,0 +1,51 @@
+
+# Git metadata
+.git
+.git/**
+
+# Python virtual environments
+.venv/
+venv/
+haystack-rag/
+langchain-rag/
+llamaindex-rag/
+llamastack-rag/
+**/.venv/
+**/venv/
+
+
+# Python cache and test artifacts
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/htmlcov/
+
+# Environment files and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!production/.env.example
+
+# TLS certificates and private keys
+production/nginx/certs/
+
+# Backups and generated runtime data
+production/backup/
+evaluation/
+reports/
+screenshots/
+
+# Benchmark and documentation files not needed by the API image
+configs/
+corpus/
+docs/
+requirements/
+
+# Production development and test utilities
+production/tests/
+production/load-testing/
+production/monitoring/
